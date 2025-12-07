@@ -4610,24 +4610,11 @@ const data = {
                 </div>
             </div>
 
-            <!-- ランダム出題＆データ管理ボタン -->
+            <!-- ランダム出題ボタンのみ -->
             <div class="bg-white rounded-lg shadow-md p-4 mb-4 flex flex-wrap gap-2">
                 <button onclick="startRandomQuiz()"
                     class="px-4 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors">
                     🎲 ランダム出題
-                </button>
-                <button onclick="saveData()"
-                    class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                    📥 データを保存
-                </button>
-                <label
-                    class="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors cursor-pointer">
-                    📤 データを読み込む
-                    <input type="file" id="load-file" accept=".json" onchange="loadData(event)" class="hidden">
-                </label>
-                <button onclick="resetData()"
-                    class="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors">
-                    全データリセット
                 </button>
             </div>
         </header>
@@ -4714,7 +4701,7 @@ const data = {
         }
 
         function getMistakeCount(itemId) {
-            return mistakes[itemId] || 0;
+            return mistakes[itemId] !== undefined ? mistakes[itemId] : 1; // 未学習はデフォルト1
         }
 
         // 安定したID生成: item.uid または item.id を優先し、なければ従来の section.id-index
@@ -5213,43 +5200,6 @@ const data = {
 
         function closeRandomQuiz() {
             document.getElementById('random-modal').classList.remove('active');
-        }
-
-        function saveData() {
-            const dataStr = JSON.stringify(mistakes, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            const today = new Date().toISOString().split('T')[0];
-            link.download = `mba-study-backup-${today}.json`;
-            link.click();
-        }
-
-        function loadData(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const loadedData = JSON.parse(e.target.result);
-                    mistakes = loadedData;
-                    saveMistakes();
-                    renderContent();
-                    alert('データを読み込みました');
-                } catch (error) {
-                    alert('データの読み込みに失敗しました');
-                }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        }
-
-        function resetData() {
-            if (confirm('すべての間違いデータをリセットしますか？この操作は取り消せません。')) {
-                mistakes = {};
-                saveMistakes();
-                renderContent();
-            }
         }
 
         init();
