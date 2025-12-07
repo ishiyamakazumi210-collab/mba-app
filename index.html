@@ -4667,22 +4667,42 @@ const data = {
 
     <script>
         const STORAGE_KEY = 'mba_study_mistakes';
+        const PENDING_KEY = 'mba_pending_logs';
         const GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbx8xe_2vYRv06w-kmmix3R_lzK_36aY-GYID8zF6PgeIL3DVDIV5kzdtcyn7f0HMt6N/exec';
         let mistakes = {};
+        let pendingLogs = [];
         let currentFilter = 0;
         let randomQuestions = [];
         let currentRandomIndex = 0;
 
         async function init() {
             loadMistakes();
+            loadPendingLogs();
             await syncMistakesFromGAS();
+            await sendPendingLogs();
             renderContent();
             updateFilterCounts();
+            setInterval(sendPendingLogs, 60000); // 60秒ごとに未送信を再送
         }
 
         function loadMistakes() {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) mistakes = JSON.parse(stored);
+        }
+
+        function loadPendingLogs() {
+            const stored = localStorage.getItem(PENDING_KEY);
+            if (stored) {
+                try {
+                    pendingLogs = JSON.parse(stored);
+                } catch (e) {
+                    pendingLogs = [];
+                }
+            }
+        }
+
+        function savePendingLogs() {
+            localStorage.setItem(PENDING_KEY, JSON.stringify(pendingLogs));
         }
 
         function saveMistakes() {
@@ -4717,22 +4737,25 @@ const data = {
         }
 
         async function logMistakeEvent(problemId, result) {
+            const payload = {
+                user: navigator.userAgent || '',
+                problem_id: problemId,
+                result: result,
+                memo: ''
+            };
             try {
                 await fetch(GAS_ENDPOINT, {
                     method: 'POST',
                     // no-cors + text/plain でプリフライトを避ける
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({
-                        user: navigator.userAgent || '',
-                        problem_id: problemId,
-                        result: result,
-                        memo: ''
-                    })
+                    body: JSON.stringify(payload)
                 });
             } catch (err) {
                 console.warn('Failed to log to GAS', err);
-                alert('GASへの送信に失敗しました。ネットワークとデプロイURLを確認してください。');
+                // オフラインなどで失敗したらキューに積んで後で再送
+                pendingLogs.push(payload);
+                savePendingLogs();
             }
         }
 
@@ -4760,6 +4783,25 @@ const data = {
             } catch (err) {
                 console.warn('Failed to sync from GAS', err);
             }
+        }
+
+        async function sendPendingLogs() {
+            if (!pendingLogs.length) return;
+            const stillPending = [];
+            for (const entry of pendingLogs) {
+                try {
+                    await fetch(GAS_ENDPOINT, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: JSON.stringify(entry)
+                    });
+                } catch (err) {
+                    stillPending.push(entry);
+                }
+            }
+            pendingLogs = stillPending;
+            savePendingLogs();
         }
 
         function updateItemButtons(itemId) {
