@@ -4717,6 +4717,11 @@ const data = {
             return mistakes[itemId] || 0;
         }
 
+        // 安定したID生成: item.uid または item.id を優先し、なければ従来の section.id-index
+        function makeItemId(section, index, item) {
+            return item.uid || item.id || `${section.id}-${index}`;
+        }
+
         function incrementMistake(itemId) {
             mistakes[itemId] = (mistakes[itemId] || 0) + 1;
             saveMistakes();
@@ -4831,7 +4836,7 @@ const data = {
 
             const total = section.items.length;
             const withMistakes = section.items.filter((item, index) => {
-                const id = `${section.id}-${index}`;
+                const id = makeItemId(section, index, item);
                 return getMistakeCount(id) > 0;
             }).length;
             const progress = total > 0 ? ((total - withMistakes) / total) * 100 : 100;
@@ -5031,7 +5036,7 @@ const data = {
             sectionContent.className = 'hidden p-3 space-y-2';
 
             section.items.forEach((item, index) => {
-                const itemId = `${section.id}-${index}`;
+                const itemId = makeItemId(section, index, item);
                 const count = getMistakeCount(itemId);
                 if (count >= currentFilter) {
                     const itemElement = renderItem(item, itemId, count);
